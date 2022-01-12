@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="7d91addc-a744-43b7-8ba0-26e5053c0ee2" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="84ab5275-6c1b-40a1-94a2-3735fb22844f" >
+		<db:my-sql-connection host="remotemysql.com" port="3306" user="9Xl9viKkrb" password="WuvrcxobTk" database="9Xl9viKkrb" />
+	</db:config>
+	<flow name="getEmployeeFlow" doc:id="52432b67-b18f-4c94-a253-a80ff093f681" >
+		<http:listener doc:name="Listener" doc:id="6216fa2a-08f6-4c82-affe-3f1406a6b7ed" config-ref="HTTP_Listener_config" path="/emp" allowedMethods="GET"/>
+		<try doc:name="GetRecords" doc:id="dd98e4e9-a700-4866-b2fa-f602a12ff789" >
+			<db:select doc:name="Select" doc:id="bf0bcdf5-dee8-4761-984b-64bfc1f775c9" config-ref="Database_Config">
+			<db:sql><![CDATA[select * from emp]]></db:sql>
+		</db:select>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="a9c80679-f1e2-4697-9200-cbff7f748936" type="DB:CONNECTIVITY">
+					<ee:transform doc:name="Transform Message" doc:id="33c33b9b-81b0-42ac-9e67-4b12423cc322" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+error.description]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<ee:transform doc:name="Transform Message" doc:id="806bc1a1-295c-4087-bf54-974863f8adc3" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="3ccaaa53-a36b-495d-89b1-17573bdf62ad" message="#[payload]"/>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="7d0329a7-8065-4a44-af60-c86dd7582866" type="ANY">
+				<ee:transform doc:name="Transform Message" doc:id="638494f8-85d7-446c-8e70-c9d6b3a42376" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+error.description]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="PostEmployeeFlow" doc:id="6abe9e2d-fd12-42a8-acf5-bde33e431a66" >
+		<http:listener doc:name="Listener" doc:id="f9e8f1cf-b335-49b2-88f8-75ae53e957bc" config-ref="HTTP_Listener_config" path="/postEmp" allowedMethods="POST">
+		</http:listener>
+		<try doc:name="Try" doc:id="222fac23-dea9-4bd8-82a8-d6ffbb648d41" >
+			<db:insert doc:name="Insert" doc:id="46eae34c-4b23-44b7-9568-16fab628b1b1" config-ref="Database_Config">
+			<db:sql><![CDATA[INSERT into emp (E_ID,E_NAME,E_SALARY)
+values(:ID,:NAME,:SALARY)]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+	'ID': payload.E_ID,
+	'NAME': payload.E_NAME,
+	'SALARY': payload.E_SALARY
+}]]]></db:input-parameters>
+		</db:insert>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="e65e9b72-fd85-4a8f-86b3-08a065051097" type="DB:CONNECTIVITY">
+					<ee:transform doc:name="Transform Message" doc:id="703ed499-1a95-47a0-84dd-66930b29cbeb" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json	
+---
+error.description]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<ee:transform doc:name="Transform Message" doc:id="5e3e5b91-9031-41c8-a59c-6a7c7676decd" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	'message': "Data Added Successfully"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="d2925680-f9b4-4ac7-b103-07a752e174c4" type="ANY">
+				<ee:transform doc:name="Transform Message" doc:id="c6a01dd8-da13-4bdf-904b-0c48655ef552" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+error.description]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+</mule>
